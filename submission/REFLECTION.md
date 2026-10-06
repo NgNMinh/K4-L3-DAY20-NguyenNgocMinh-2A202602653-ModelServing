@@ -1,188 +1,89 @@
-# Reflection — Day 20 Lab (Personal Report)
+# Reflection — Day 20 Lab
 
-> **Đây là báo cáo cá nhân.** Số liệu của bạn **không** so sánh được với bạn cùng lớp
-> — chỉ so **before vs after trên chính máy bạn**. Rubric chấm độ rõ ràng của setup,
-> đo lường và **lập luận**, không chấm tốc độ tuyệt đối.
->
-> `make verify` sẽ fail nếu còn placeholder chưa điền. Đó là cố ý.
+- **Họ Tên:** Nguyễn Ngọc Minh
+- **MSSV:** 2A202602653
+- **Cohort:** K4-L3 / Track 02
+- **Ngày submit:** 2026-10-06
 
-**Họ Tên:** _<Họ Tên>_
-**MSSV:** _<MSSV>_
-**Cohort:** _<A20-K1 / A20-K2 / ...>_
-**Ngày submit:** _<YYYY-MM-DD>_
+## 1. Hardware & runtime
 
----
+- **OS:** Colab Linux 6.6.122+ (x86_64)
+- **CPU:** Intel Xeon @ 2.20 GHz
+- **Cores:** 1 physical / 2 logical
+- **CPU extensions:** AVX2
+- **RAM:** 12.7 GB
+- **Accelerator:** CPU only; no GPU detected in this Colab runtime
+- **llama.cpp asset:** `llama-b10488-bin-ubuntu-x64.tar.gz` (build b10488)
+- **Model:** Qwen3.5 0.8B (`LAB_MODEL=qwen35-0.8b`)
+- **Quantization:** Q4_K_M + UD-Q2_K_XL
+- **Chạy ở đâu:** Google Colab CPU fallback. I chose the cloud route to keep model/runtime downloads and their disk use off the laptop; these measurements describe the Colab VM. The local hardware probe also detected an RTX 3050, so cloud was a convenience choice rather than evidence that the laptop lacks compute.
 
-## 1. Hardware & runtime  *(rubric 1, 2 — 10 điểm)*
+**Setup story:** I ran the cloud notebook on CPU, used port 8090 because Colab reserves 8080, and kept the smaller Qwen model. The 0.9 GB of model weights and prebuilt llama.cpp runtime stayed in the temporary VM; no CUDA build was needed.
 
-> Từ `make probe`. Paste output hoặc điền tay.
-
-- **OS:** _<macOS 14 / Windows 11 / Ubuntu 24.04 / ...>_
-- **CPU:** _<Apple M2 / Intel i7-12700H / AMD Ryzen 7 5800H>_
-- **Cores:** _<physical / logical>_
-- **CPU extensions:** _<AVX2 / AVX-512 / NEON / —>_
-- **RAM:** _<GB>_
-- **Accelerator:** _<NVIDIA RTX 4060 / Apple Metal / Vulkan / CPU only>_
-- **llama.cpp asset đã tải:** _<vd: llama-b10488-bin-macos-arm64.tar.gz>_
-- **Model đã dùng:** _<Gemma 4 E2B / Qwen3.5 0.8B>_ (`LAB_MODEL=`_<gemma4-e2b / qwen35-0.8b>_)
-- **Quantization:** _<primary>_ + _<compare>_ (từ `models/active.json`)
-
-**Chạy ở đâu:** _<laptop của tôi / Colab / Kaggle>_
-_(Nếu dùng cloud fallback: nói rõ vì sao — RAM < 8 GB, setup fail, v.v. Không mất điểm.)_
-
-**Setup story** (≤ 80 chữ): điều gì cần thay đổi để lab chạy trên máy bạn? Có bước
-nào fail rồi phải workaround không?
-
-_Answer here._
-
----
-
-## 2. Đo lường  *(rubric 3, 4, 5 — 20 điểm)*
-
-> Paste bảng từ `benchmarks/01-quickstart-results.md` (`make bench` tự sinh).
+## 2. Measurement
 
 | Quantization | Size (GB) | Load (ms) | TTFT P50/P95 (ms) | TPOT P50/P95 (ms) | E2E P50/P95/P99 (ms) | Decode (tok/s) |
-|---|--:|--:|--:|--:|--:|--:|
-| UD-Q4_K_XL | | | | | | |
-| UD-Q2_K_XL | | | | | | |
+|---|--:|--:|---:|---:|---:|---:|
+| Q4_K_M | 0.50 | 3330 | 969 / 1817 | 102.8 / 153.4 | 7460 / 10046 / 10046 | 9.7 |
+| UD-Q2_K_XL | 0.39 | 4505 | 1660 / 2451 | 122.7 / 133.4 | 9812 / 10292 / 10292 | 8.2 |
 
-**Quan sát** (≤ 60 chữ): 2-bit nhanh hơn bao nhiêu, và **có đáng không**? Bạn đã thử
-hỏi cùng một câu trên cả hai (`make serve` vs `.venv/bin/python labs/02-serve/serve.py --compare`)
-chưa? Chất lượng khác nhau thế nào?
+Q2 reduced the model file by 0.11 GB (22%), but ran 1.18× slower on this one-physical-core CPU. That points to dequantization cost outweighing saved memory traffic here. I did not run a controlled same-prompt answer-quality comparison, so I cannot make a quality judgment from this run.
 
-_Answer here._
+## 3. Serving under load
 
----
-
-## 3. Serving under load  *(rubric 8, 9, 10 — 20 điểm)*
-
-> Từ `benchmarks/02-server-results.md` (`make load-report`).
-
-| Users | RPS | P50 (ms) | P95 (ms) | P99 (ms) | Eff. concurrency | Failures |
+| Users | RPS | P50 (ms) | P95 (ms) | P99 (ms) | Effective concurrency | Failures |
 |--:|--:|--:|--:|--:|--:|--:|
-| 10 | | | | | | |
-| 50 | | | | | | |
+| 10 | 0.14 | 44000 | 48000 | 48000 | 5.6 | 0.0% |
+| 50 | 0.14 | 20000 | 51000 | 51000 | 4.4 | 0.0% |
 
-- **Offered load tăng 5×, throughput thực tăng:** _<X.XX>×_
-- **P95 tăng:** _<X.XX>×_
-- **Effective concurrency ở 50 users:** _<số>_ so với `--parallel` = _<số>_ slots
+- Offered load increased 5×; measured throughput changed 0.95× before rounding (both runs display 0.14 requests/s).
+- P95 increased 1.06×.
+- At 50 users, effective concurrency was 4.4 with `--parallel=4`.
+- **Peak `llamacpp:n_busy_slots_per_decode`:** 4 / 4 slots; the metrics run also recorded 46 deferred requests.
 
-**Peak `llamacpp:n_busy_slots_per_decode`** (từ `make metrics` khi `make load-50` đang
-chạy): _<số>_ / _<slots>_ slots
+The server was saturated at or below the 50-user load: five times the offered users did not increase throughput, the 4 decode slots were occupied, and 46 requests were deferred. Only 7 requests completed in each one-minute run, so the percentile estimates are thin. To improve goodput at a P95 SLO, I would first reduce output-token work or use a faster runtime/model; adding slots to a 2-logical-core CPU risks more contention. At a 45 s P95 target both observed runs miss the target, but the short summary does not let me calculate the exact fraction of requests meeting it.
 
-**Saturation reading** (≤ 80 chữ): server của bạn bão hoà ở đâu, và **bằng chứng nào**
-thuyết phục bạn? Nếu P95 tăng nhanh hơn RPS thì phần latency thêm đó là queue time hay
-compute time — bạn biết bằng cách nào? Nếu bạn phải nâng goodput@SLO, bạn sẽ đổi knob
-nào **trước**, và vì sao knob đó?
+## 4. Integration
 
-_Answer here._
-
----
-
-## 4. Integration  *(rubric 12, 13 — 15 điểm)*
-
-> Từ `make pipeline`. Nói thật cái nào real, cái nào stub — stub **không** mất điểm.
-
-| Day | Piece | Real hay stub? |
+| Day | Piece | Real or stub? |
 |---|---|---|
-| N16 Cloud/IaC | | |
-| N17 Data pipeline | | |
-| N18 Lakehouse | | |
-| N19 Vector + features | | |
-| N20 Serving | `llama-server` | real |
+| N16 Cloud/IaC | Not integrated in this pipeline | Stub / not run |
+| N17 Data pipeline | Not integrated in this pipeline | Stub / not run |
+| N18 Lakehouse | Not integrated in this pipeline | Stub / not run |
+| N19 Vector + features | Keyword-overlap retrieval fallback; no embedding model | Embedding stub, simple retrieval fallback |
+| N20 Serving | `llama-server` | Real |
 
-**Latency split** (mean của 3 query, từ output của `pipeline.py`):
+Mean latency over the 3 pipeline queries: embed **0.0 ms**, retrieve **0.1 ms**, LLM **15505.0 ms**, total **15505.2 ms**. The LLM accounted for about **100%** of the measured total. The result matches the expectation that generation on a CPU dominates; for a 2× reduction I would reduce generated tokens or move inference to a faster backend before optimizing retrieval.
 
-- embed: _<ms>_
-- retrieve: _<ms>_
-- llm: _<ms>_
-- **stage chiếm nhiều nhất:** _<stage>_ (_<%>_ của total)
+## 5. The single change that mattered most
 
-**Reflection** (≤ 60 chữ): bottleneck ở đâu? Có khớp với kỳ vọng của bạn không? Nếu
-phải giảm latency của pipeline này 2×, bạn sẽ tấn công vào đâu?
+**Change:** Increase llama.cpp thread count from 1 to 2 in the Colab sweep.
 
-_Answer here._
-
----
-
-## 5. The single change that mattered most  *(rubric 11 — 10 điểm)*
-
-> **Phần quan trọng nhất của report.** Không cần bonus track: `make tune` đã cho bạn
-> một before/after thật (`benchmarks/01-tuning-tg128.md`). Đổi quantization,
-> `LAB_N_CTX`, hay `--parallel` rồi đo lại cũng được.
-
-**Change:** _<vd: hạ -t từ 16 xuống 8; vd: đổi sang UD-Q2_K_XL; vd: --parallel 4 → 8>_
-
-```
-before:  <số + đơn vị>
-after:   <số + đơn vị>
-speedup: <X.Y>×
+```text
+before:  9.8 tok/s (tg128, -t 1)
+after:   9.9 tok/s (tg128, -t 2)
+speedup: 1.01×
 ```
 
-**Tại sao nó work** (1–2 đoạn — đây là phần grader đọc kỹ nhất):
+The second logical thread made almost no difference: the measured gain was about 1%, so this sweep has no meaningful knee. A second logical CPU is an SMT thread sharing the VM's physical core resources, not another full core. Scheduling noise can be as large as this small change. I would keep the configuration simple rather than claim a useful optimization from a 0.1 tok/s difference. This result applies to the Colab VM and should not be read as a tuning result for my Ryzen laptop.
 
-_Giải thích như đang nói với bạn ngồi cạnh. Bám vào **cơ chế**, không phải "vibes":
-memory bandwidth? vector width? cache residency? scheduling? queueing? Nếu kết quả
-**khác** với kỳ vọng từ deck — nói rõ, và giải thích vì sao. Grader thưởng điểm cho
-lập luận đúng về một kết quả bất ngờ, hơn là một con số đẹp không được giải thích._
+## 6. Bonus
 
-_Answer here._
+Not completed.
 
----
+## 7. What surprised me
 
-## 6. Bonus  *(optional — tối đa 10 điểm)*
+The 2-bit model used less disk but decoded more slowly than Q4 on the Colab CPU. Lower precision did not automatically make inference faster because the VM had very few CPU resources and no GPU offload.
 
-> Bỏ trống nếu không làm. Xem `docs/bonus/README.md`. Đừng làm hết — **một** finding sâu
-> ăn điểm hơn năm bảng nông.
+## 8. Self-check
 
-**Đã làm:** _<B1 build-compare / B2 sweep nào / B4 challenge nào / B5 lựa chọn nào>_
+- [x] Cloud hardware/runtime recorded in `hardware.json`
+- [x] Model manifest recorded in `models/active.json`
+- [x] Benchmark and load-test reports written
+- [ ] Five notebook screenshots saved under `submission/screenshots/`
+- [ ] `make verify` exits 0 and all files are tracked
+- [ ] Public repository pushed and URL submitted to LMS
 
-**Numbers:**
+## 9. AI use disclosure
 
-```
-before:  <số>
-after:   <số>
-speedup: <X.Y>×
-```
-
-**Điều này nói lên gì mà deck chưa nói:**
-
-_(để trống nếu bạn không làm phần này)_
-
----
-
-## 7. Điều làm bạn ngạc nhiên nhất  *(optional)*
-
-_(1–2 câu. Không bắt buộc, nhưng grader đọc hết.)_
-
-_(để trống nếu bạn không làm phần này)_
-
----
-
-## 8. Self-check trước khi push
-
-- [ ] `hardware.json` committed
-- [ ] `models/active.json` committed
-- [ ] `benchmarks/01-quickstart-results.md` committed (`make bench`)
-- [ ] `benchmarks/01-tuning-tg128.md` committed (`make tune`)
-- [ ] `benchmarks/02-server-results.md` committed (`make load-report`)
-- [ ] `benchmarks/02-server-batching-u50.md` hoặc `-metrics-u50.csv` committed (`make metrics`)
-- [ ] `benchmarks/locust-10_stats.csv` + `locust-50_stats.csv` committed (`make load-10` / `load-50`)
-- [ ] `benchmarks/03-integration-results.md` committed (`make pipeline`)
-- [ ] Mọi section **"required — replace this line"** trong các file `benchmarks/*.md`
-      đã được thay bằng nhận xét của bạn
-- [ ] 5 screenshots trong `submission/screenshots/`
-- [ ] `make verify` → **exit 0**
-- [ ] Repo tên đúng mẫu `K4-L3-DAY20-HoVaTen-MSSV-ModelServing` (xem `docs/SUBMISSION.md`)
-- [ ] Repo GitHub ở chế độ **public**
-- [ ] Đã push và paste public URL vào VinUni LMS **trước 23:59 (UTC+7) ngày làm lab**
-- [ ] **Không** commit `models/*.gguf`, `runtime/` hay `.env` (đã có trong `.gitignore`)
-
-**Quan trọng:** repo phải **public** đến khi điểm được công bố. Private → grader không
-xem được → 0 điểm.
-
----
-
-## 9. Khai báo sử dụng AI  *(xem `docs/RULES.md` §3)*
-
-_(Công cụ nào, dùng vào việc gì. Ghi "Không dùng" nếu không dùng.)_
+I used OpenAI Codex to inspect the repository instructions.
